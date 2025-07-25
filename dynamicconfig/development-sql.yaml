@@ -1,0 +1,15 @@
+# Dynamic config for Temporal development with SQL backend
+# This is a minimal configuration for local development
+
+system.advancedVisibilityWritingMode:
+  - value: "off"
+system.enableReadFromSecondaryVisibility:
+  - value: false
+system.advancedVisibilityToRead:
+  - value: "elasticsearch"
+system.visibilityToRead:
+  - value: "elasticsearch"
+system.visibilityToWrite:
+  - value: "elasticsearch"
+system.enableWriteToSecondaryVisibility:
+  - value: false 
