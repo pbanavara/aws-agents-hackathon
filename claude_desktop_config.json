@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "workflow-control": {
+      "command": "python",
+      "args": ["/Users/pbanavara/dev/aws-agents-hackathon/mcp_server.py"],
+      "env": {
+        "PYTHONPATH": "/Users/pbanavara/dev/aws-agents-hackathon"
+      }
+    }
+  }
+} 
