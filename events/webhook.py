@@ -2,15 +2,20 @@ import asyncio
 import logging
 import uuid
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 
 # Import our schemas and workflows
 from usage_metrics_schema import WebhookRequest, WebhookResponse, UsageMetricsAlert
-from alert_workflow import AlertProcessingWorkflow, BatchAlertProcessingWorkflow
-from upsell_workflow import trigger_upsell_workflow, AutomationLevel
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from workflows.all_workflows import (
+    trigger_upsell_workflow, 
+    AutomationLevel
+)
 
 # Import Temporal client
 from temporalio.client import Client
@@ -60,57 +65,16 @@ async def shutdown_event():
         logger.info("Shutting down webhook server")
 
 
-async def start_alert_workflow(alert_data: Dict[str, Any]) -> str:
-    """Start a Temporal workflow for a single alert"""
-    global temporal_client
-    
-    if not temporal_client:
-        raise HTTPException(status_code=500, detail="Temporal client not available")
-    
-    # Generate workflow ID if not provided
-    workflow_id = f"alert-{alert_data.get('alert_id', str(uuid.uuid4()))}-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}"
-    
-    # Start the workflow
-    handle = await temporal_client.start_workflow(
-        AlertProcessingWorkflow.run,
-        alert_data,
-        id=workflow_id,
-        task_queue="alert-task-queue",
-    )
-    
-    logger.info(f"Started alert workflow: {workflow_id}")
-    return workflow_id
 
 
-async def start_batch_alert_workflow(alerts_data: List[Dict[str, Any]], batch_id: str = None) -> str:
-    """Start a Temporal workflow for multiple alerts"""
-    global temporal_client
-    
-    if not temporal_client:
-        raise HTTPException(status_code=500, detail="Temporal client not available")
-    
-    # Generate workflow ID
-    workflow_id = f"batch-alert-{batch_id or str(uuid.uuid4())}-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}"
-    
-    # Start the batch workflow
-    handle = await temporal_client.start_workflow(
-        BatchAlertProcessingWorkflow.run,
-        alerts_data,
-        id=workflow_id,
-        task_queue="alert-task-queue",
-    )
-    
-    logger.info(f"Started batch alert workflow: {workflow_id}")
-    return workflow_id
 
-
-async def trigger_upsell_if_needed(alert_data: Dict[str, Any]) -> None:
+async def trigger_upsell_if_needed(alert_data: Dict[str, Any]) -> Optional[str]:
     """Trigger upsell workflow if the alert meets criteria"""
     global temporal_client
     
     if not temporal_client:
         logger.warning("Temporal client not available for upsell workflow")
-        return
+        return None
     
     try:
         # Check if this alert should trigger an upsell workflow
@@ -148,10 +112,14 @@ async def trigger_upsell_if_needed(alert_data: Dict[str, Any]) -> None:
             )
             
             logger.info(f"Upsell workflow triggered: {upsell_workflow_id}")
+            return upsell_workflow_id
             
     except Exception as e:
         logger.error(f"Failed to trigger upsell workflow: {e}")
         # Don't fail the main alert processing if upsell fails
+        return None
+    
+    return None
 
 
 @app.post("/webhook/alerts", response_model=WebhookResponse)
@@ -183,35 +151,16 @@ async def receive_alerts(request: WebhookRequest, background_tasks: BackgroundTa
         workflow_ids = []
         errors = []
         
-        # Process alerts based on batch size
-        if len(alerts_data) == 1:
-            # Single alert - use individual workflow
+        # Process alerts - trigger upsell workflows for each alert
+        for alert_data in alerts_data:
             try:
-                workflow_id = await start_alert_workflow(alerts_data[0])
-                workflow_ids.append(workflow_id)
-                
-                # Trigger upsell workflow for high-value alerts
-                await trigger_upsell_if_needed(alerts_data[0])
-                
-            except Exception as e:
-                error_msg = f"Failed to start workflow for alert {alerts_data[0].get('alert_id')}: {str(e)}"
-                logger.error(error_msg)
-                errors.append(error_msg)
-        else:
-            # Multiple alerts - use batch workflow
-            try:
-                workflow_id = await start_batch_alert_workflow(
-                    alerts_data, 
-                    batch_id=request.batch_id
-                )
-                workflow_ids.append(workflow_id)
-                
-                # Trigger upsell workflows for high-value alerts in batch
-                for alert_data in alerts_data:
-                    await trigger_upsell_if_needed(alert_data)
+                # Trigger upsell workflow for each alert
+                workflow_id = await trigger_upsell_if_needed(alert_data)
+                if workflow_id:
+                    workflow_ids.append(workflow_id)
                     
             except Exception as e:
-                error_msg = f"Failed to start batch workflow: {str(e)}"
+                error_msg = f"Failed to process alert {alert_data.get('alert_id')}: {str(e)}"
                 logger.error(error_msg)
                 errors.append(error_msg)
         
@@ -265,19 +214,20 @@ async def receive_alerts_sync(request: WebhookRequest):
         workflow_ids = []
         errors = []
         
-        # Process each alert synchronously
+        # Process each alert synchronously - trigger upsell workflows
         for alert_data in alerts_data:
             try:
-                workflow_id = await start_alert_workflow(alert_data)
-                workflow_ids.append(workflow_id)
-                
-                # Wait for workflow completion (for sync endpoint)
-                if temporal_client:
-                    handle = temporal_client.get_workflow_handle(workflow_id)
-                    await handle.result()  # Wait for completion
+                workflow_id = await trigger_upsell_if_needed(alert_data)
+                if workflow_id:
+                    workflow_ids.append(workflow_id)
+                    
+                    # Wait for workflow completion (for sync endpoint)
+                    if temporal_client:
+                        handle = temporal_client.get_workflow_handle(workflow_id)
+                        await handle.result()  # Wait for completion
                     
             except Exception as e:
-                error_msg = f"Failed to process alert {alert_data.get('id')}: {str(e)}"
+                error_msg = f"Failed to process alert {alert_data.get('alert_id')}: {str(e)}"
                 logger.error(error_msg)
                 errors.append(error_msg)
         

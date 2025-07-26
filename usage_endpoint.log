@@ -1,0 +1,4 @@
+🚀 Usage data endpoint started on http://0.0.0.0:8001
+📊 POST usage data to: http://localhost:8001/usage/data
+🔍 GET usage data from: http://localhost:8001/usage/data/{account_id}
+❤️ Health check at: http://localhost:8001/usage/health

@@ -1,6 +1,8 @@
-# Alert Webhook System
+# Events Directory - Webhook System
 
 This directory contains a FastAPI-based webhook system for receiving and processing alerts using Temporal workflows. The system provides reliable, scalable alert processing with automatic retries, monitoring, and orchestration.
+
+**Note**: Workflow files have been moved to the `workflows/` directory. This directory now focuses on webhook endpoints and event processing.
 
 ## Architecture
 
@@ -28,7 +30,7 @@ This directory contains a FastAPI-based webhook system for receiving and process
 - **AlertContext**: Contextual information (environment, service, etc.)
 - **WebhookRequest/Response**: API request/response models
 
-### 2. Alert Workflows (`alert_workflow.py`)
+### 2. Alert Workflows (`workflows/alert_workflow.py`)
 - **AlertProcessingWorkflow**: Processes individual alerts
 - **BatchAlertProcessingWorkflow**: Processes multiple alerts in parallel
 - **Activities**: 
@@ -42,7 +44,7 @@ This directory contains a FastAPI-based webhook system for receiving and process
 - **GET /health**: Health check endpoint
 - **GET /docs**: Auto-generated API documentation
 
-### 4. Alert Worker (`alert_worker.py`)
+### 4. Alert Worker (`workflows/alert_worker.py`)
 - Temporal worker that processes alert workflows
 - Runs activities and manages workflow execution
 
@@ -73,7 +75,7 @@ docker compose up -d
 
 ### 3. Start Alert Worker
 ```bash
-cd events
+cd workflows
 python alert_worker.py
 ```
 

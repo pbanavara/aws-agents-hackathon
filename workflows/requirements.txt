@@ -1,1 +1,9 @@
-temporalio 
+temporalio
+fastapi
+uvicorn
+pymongo==4.6.0
+dnspython==2.4.2
+requests
+boto3
+anthropic
+boto3[s3] 

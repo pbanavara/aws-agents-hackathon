@@ -1,91 +1,107 @@
-# Temporal Workflow Setup
+# Workflows Directory
 
-This directory contains a sample Temporal workflow setup with the following components:
+This directory contains all Temporal workflows and related components for the AWS Agents Hackathon project.
 
-## Files
+## 📁 File Structure
 
-- `sample_workflow.py` - A simple Temporal workflow that returns a greeting
-- `worker.py` - A Temporal worker that processes workflow tasks
-- `test_start_workflow.py` - A test script to start and execute the workflow
-- `requirements.txt` - Python dependencies (temporalio)
+### Consolidated Workflows
+- **`all_workflows.py`** - **MAIN FILE** - All workflows consolidated into one file:
+  - UpsellWorkflow: Customer upsell automation
+  - SampleWorkflow: Basic sample workflow
+  - All activities and helper functions
+  - Built-in usage data endpoint
 
-## Prerequisites
+### Workers
+- **`consolidated_worker.py`** - **MAIN WORKER** - Handles all workflows
 
-1. Docker Desktop installed and running
-2. Python 3.8+ with pip
+### Testing & Utilities
+- **`test_consolidated_workflows.py`** - **MAIN TEST** - Tests all consolidated workflows
+- **`test_usage_endpoint.py`** - Tests for the usage data endpoint
 
-## Setup Instructions
+### Documentation
+- **`UPSELL_WORKFLOW_README.md`** - Detailed documentation for the upsell workflow system
+- **`README.md`** - This file
 
-### 1. Start Temporal Server
+## 🚀 Quick Start
 
-The Temporal server is configured to run using Docker Compose. The following containers are started:
-
-- **temporal** - Main Temporal server (port 7233)
-- **temporal-ui** - Web UI for monitoring workflows (port 8080)
-- **temporal-postgresql** - Database backend
-- **temporal-elasticsearch** - Search and visibility backend
-- **temporal-admin-tools** - Administrative tools
-
-```bash
-# From the project root directory
-export ELASTICSEARCH_VERSION=7.10.1
-export POSTGRESQL_VERSION=13
-export TEMPORAL_VERSION=1.21.3
-export TEMPORAL_ADMINTOOLS_VERSION=1.21.3
-export TEMPORAL_UI_VERSION=2.15.0
-docker compose up -d
-```
-
-### 2. Install Python Dependencies
-
+### 1. Install Dependencies
 ```bash
 cd workflows
 pip install -r requirements.txt
 ```
 
-### 3. Start the Worker
-
+### 2. Start Temporal Server
 ```bash
-python worker.py
+# From project root
+docker compose up -d
 ```
 
-The worker will connect to the Temporal server and start polling for workflow tasks.
-
-### 4. Test the Workflow
-
-In a separate terminal:
-
+### 3. Run Consolidated Worker
 ```bash
-python test_start_workflow.py
+# Start the main consolidated worker (handles all workflows)
+python consolidated_worker.py &
 ```
 
-Expected output:
+### 4. Test All Workflows
+```bash
+# Test all consolidated workflows
+python test_consolidated_workflows.py
+
+# Test usage endpoint specifically
+python test_usage_endpoint.py
 ```
-Workflow result: Hello, World!
+
+## 🔧 Workflow Features
+
+### Upsell Workflow
+- **Activities**: fetch_usage, fetch_contract, ask_claude_for_plan, send_email_draft, post_slack_summary, create_zoom_meeting, log_opportunity
+- **Automation Levels**: Full automation, Human intervention, Hybrid
+- **Usage Data Endpoint**: Built-in FastAPI server on port 8001 for receiving usage data
+- **MongoDB Integration**: Contract data retrieval from MongoDB Atlas
+
+
+
+## 🌐 Usage Data Endpoint
+
+The upsell workflow includes a built-in usage data endpoint:
+
+- **URL**: `http://localhost:8001`
+- **POST** `/usage/data` - Receive usage data from webhooks
+- **GET** `/usage/data/{account_id}` - Retrieve stored usage data
+- **GET** `/usage/health` - Health check
+
+### Example Usage Data
+```json
+{
+  "account_id": "account_000001",
+  "current_usage": 2500.0,
+  "usage_trend": "increasing",
+  "usage_period": "monthly",
+  "threshold_exceeded": 2000.0,
+  "metric_type": "trade_volume",
+  "additional_context": {
+    "source": "webhook",
+    "alert_severity": "high"
+  }
+}
 ```
 
-## Web UI
+## 📊 Integration Points
 
-You can monitor workflows using the Temporal Web UI at:
-http://localhost:8080
+- **Webhook**: Receives alerts and triggers workflows
+- **MongoDB**: Stores and retrieves contract data
+- **Usage Endpoint**: Receives real-time usage metrics
+- **Temporal**: Orchestrates workflow execution
 
-## Workflow Details
+## 🔍 Monitoring
 
-The sample workflow (`SampleWorkflow`) is a simple workflow that:
-- Takes a name parameter as input
-- Returns a greeting message: "Hello, {name}!"
+- **Temporal UI**: `http://localhost:8080`
+- **Usage Endpoint Health**: `http://localhost:8001/usage/health`
+- **Workflow Logs**: Check worker console output
 
-## Next Steps
+## 📝 Notes
 
-To create your own workflows:
-
-1. Define your workflow in a new Python file using the `@workflow.defn` decorator
-2. Add the workflow class to the worker's `workflows` list
-3. Create activities if needed using the `@activity.defn` decorator
-4. Start the worker and execute your workflow
-
-## Troubleshooting
-
-- If the Temporal server fails to start, check the logs: `docker logs temporal`
-- Ensure all environment variables are set before running `docker compose up -d`
-- Make sure Docker Desktop is running and has sufficient resources allocated 
+- All workflows are designed to be fault-tolerant with proper error handling
+- The usage data endpoint uses in-memory storage (can be extended to persistent storage)
+- Workers should be restarted if workflows are modified
+- MongoDB connection is configured for Atlas cluster 
