@@ -185,6 +185,23 @@ async def fetch_usage(account_id: str, metric_type: str) -> UsageData:
 @activity.defn
 async def fetch_contract(account_id: str) -> ContractData:
     """Fetch current contract information for the account from MongoDB"""
+    
+    # Check if MongoDB integration is enabled
+    from config_checker import is_mongodb_enabled
+    
+    if not is_mongodb_enabled():
+        logger.info(f"🗄️ MongoDB integration is disabled - using default contract data for {account_id}")
+        # Return default contract data if MongoDB is disabled
+        return ContractData(
+            account_id=account_id,
+            current_plan="Basic",
+            contract_end_date="2024-12-31",
+            renewal_date="2024-11-30",
+            current_spend=99.0,
+            contract_terms={"term_length": "12 months", "auto_renewal": True},
+            contact_info={"primary": "contact@company.com", "secondary": "billing@company.com"}
+        )
+    
     try:
         import sys
         import os
@@ -260,6 +277,13 @@ async def ask_claude_for_plan(
     automation_level: AutomationLevel
 ) -> UpsellPlan:
     """Use Claude to analyze usage and contract data to recommend an upsell plan"""
+    
+    # Check if Claude integration is enabled
+    from config_checker import is_claude_enabled
+    
+    if not is_claude_enabled():
+        logger.info("🤖 Claude integration is disabled - using fallback logic")
+        return _fallback_upsell_plan(usage_data, contract_data)
     
     # Import AWS libraries inside activity to avoid sandbox restrictions
     import boto3
@@ -588,6 +612,14 @@ async def send_email_draft(
 ) -> bool:
     """Send email draft to customer via Amazon SES"""
     
+    # Check if email sending is enabled
+    from config_checker import is_email_enabled
+    
+    if not is_email_enabled():
+        logger.info(f"📧 Email sending is disabled - skipping email to {email_draft.recipient}")
+        logger.info(f"   Subject: {email_draft.subject}")
+        return True  # Return success to avoid workflow failure
+    
     # Import boto3 inside activity to avoid sandbox restrictions
     import boto3
     
@@ -633,6 +665,14 @@ async def post_slack_summary(
     automation_level: AutomationLevel
 ) -> str:
     """Post summary to Slack (mock implementation)"""
+    
+    # Check if Slack posting is enabled
+    from config_checker import is_slack_enabled
+    
+    if not is_slack_enabled():
+        logger.info(f"💬 Slack posting is disabled - skipping message to {slack_summary.channel}")
+        return f"slack_msg_disabled_{uuid.uuid4().hex[:8]}"
+    
     # TODO: Implement actual Slack posting
     print(f"💬 Slack message posted to {slack_summary.channel}")
     print(f"   Message: {slack_summary.message[:100]}...")
@@ -650,6 +690,21 @@ async def create_zoom_meeting(
     automation_level: AutomationLevel
 ) -> ZoomMeeting:
     """Create Zoom meeting (mock implementation)"""
+    
+    # Check if Zoom meeting creation is enabled
+    from config_checker import is_zoom_enabled
+    
+    if not is_zoom_enabled():
+        logger.info(f"📹 Zoom meeting creation is disabled - skipping meeting: {zoom_meeting.topic}")
+        return ZoomMeeting(
+            topic=f"[DISABLED] {zoom_meeting.topic}",
+            start_time=zoom_meeting.start_time,
+            duration_minutes=zoom_meeting.duration_minutes,
+            attendees=zoom_meeting.attendees,
+            meeting_url="https://zoom.us/j/disabled",
+            meeting_id="disabled"
+        )
+    
     # TODO: Implement actual Zoom API integration
     print(f"📹 Zoom meeting created: {zoom_meeting.topic}")
     print(f"   Attendees: {', '.join(zoom_meeting.attendees)}")

@@ -1,0 +1,8 @@
+{
+  "email_sending": "enabled",
+  "claude_integration": "enabled",
+  "slack_posting": "enabled",
+  "zoom_meeting": "enabled",
+  "mongodb_integration": "enabled",
+  "usage_endpoint": "enabled"
+}
